@@ -3,7 +3,10 @@ import os
 import pickle
 import faiss
 from sentence_transformers import SentenceTransformer
-from typing import List
+
+import logging
+logger = logging.getLogger(__name__)
+
 
 class EmbeddingManager:
 
@@ -14,12 +17,13 @@ class EmbeddingManager:
 
         Args:
             model_name (str): Name or path of the embedding model to use
+            device (str): Device to run the model on, e.g., "cpu", "cuda"
         """
         self.model = SentenceTransformer(model_name, device=device)
         self.dimension = self.model.get_sentence_embedding_dimension()
         self.index = None
         self.texts = []
-        
+    
 
     def create_embeddings(self, texts):
         """
@@ -31,30 +35,61 @@ class EmbeddingManager:
         return self.model.encode(texts, convert_to_numpy=True)
 
 
-    def build_index(self, texts, save_path=None):
+    def build_index(self, texts, save_path):
         """
         Builds a FAISS index from the provided texts and their embeddings
 
         Args:
             texts (List[str]): List of texts to index
         """
-        print(f"Creating embeddings for {len(texts)} docs...")
+        try:
+            logger.info(f"Creating embeddings for {len(texts)} documents...")
+            embeddings = self.create_embeddings(texts)
+            
+            logger.debug("Initializing FAISS index...")
+            self.index = faiss.IndexFlatIP(self.dimension)
+            
+            logger.debug("Normalizing embeddings...")
+            faiss.normalize_L2(embeddings)
+            
+            logger.debug("Adding embeddings to index...")
+            self.index.add(embeddings)
+            self.texts = texts
 
-        embeddings = self.create_embeddings(texts)
-        self.index = faiss.IndexFlatIP(self.dimension)
-        faiss.normalize_L2(embeddings)
-        self.index.add(embeddings)
-        self.texts = texts
+            self.save_index(save_path)
+            logger.info(f"Index created successfully with {self.index.ntotal} documents")
+        except Exception as e:
+            logger.error(f"Failed to build index: {str(e)}")
+            raise
+
+
+    def add_to_index(self, new_texts, save_path):
+        """
+        Add new texts to the existing FAISS index without rebuilding it from scratch
         
-        if save_path is None:
-            save_path = '../data/faiss_index'
+        Args:
+            new_texts (List[str]): List of new text chunks to add
+            save_path (str): Path to save the updated index and texts
+        """
+        if self.index is None:
+            raise ValueError("Index not initialized. Load or build the index first.")
 
-        self.save_index(save_path)
+        if not new_texts:
+            logger.info("No new texts provided to add.")
+            return
 
-        print(f"Index created with {self.index.ntotal} docs.")
+        logger.info(f"Creating embeddings for {len(new_texts)} new docs...")
+        new_embeddings = self.create_embeddings(new_texts)
+        faiss.normalize_L2(new_embeddings)
+
+        self.index.add(new_embeddings) 
+        self.texts.extend(new_texts)  
+
+        self.save_index(save_path)      
+        logger.info(f"Index updated. Now contains {self.index.ntotal} docs.")
 
 
-    def search(self, query, k=5):
+    def search(self, query, k):
         """
         Search for similar documents
         
@@ -93,7 +128,7 @@ class EmbeddingManager:
             pickle.dump(self.texts, f)
     
 
-    def load_index(self, path: str):
+    def load_index(self, path):
         """
         Load index and texts
 
@@ -111,17 +146,16 @@ class EmbeddingManager:
         with open(texts_path, "rb") as f:
             self.texts = pickle.load(f)
 
-        print(f"Index loaded with {len(self.texts)} docs")
+        logger.info(f"Index loaded with {len(self.texts)} docs")
 
 
-    def mean_score(self, query, k=5):
+    def mean_score(self, query, k):
         """
         Returns the mean similarity score of the top-k retrieved documents for a query
     
         Args:
             query (str): Query text to search for
             k (int): Number of top results to consider
-    
         """
         results = self.search(query, k)
         if not results:
