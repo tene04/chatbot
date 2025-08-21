@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>RAG+LLM ChatBot Interface</title>
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+	<link href="css/style.css" rel="stylesheet">
+</head>
+
+<body>
+
+	<!-- Side bar -->
+	<div id="sidebar">
+
+		<!-- Add doc -->
+		<div id="fileSection">
+			<h3><i class="fas fa-folder"></i>Documents</h3>
+			<div class="drag-zone" id="dragZone">
+				<i class="fas fa-cloud-upload-alt" style="font-size: 24px; margin-bottom: 8px;"></i>
+				<div>Drag files here</div>
+				<div style="font-size: 12px; margin-top: 4px;">or click here to select</div>
+			</div>
+			<button id="chooseFileBtn">
+				<i class="fas fa-plus"></i>
+				Add document
+			</button>
+			<input type="file" id="fileInput" style="display: none;" multiple accept=".pdf">
+			<div id="fileList" class="file-list"></div>
+		</div>
+
+		<!-- Log Section -->
+		<div id="logSection">
+			<h3><i class="fas fa-terminal"></i>System logs</h3>
+			<div id="logList"></div>
+		</div>
+	</div>
+
+	<!-- Main container -->
+	<div class="mainContainer">
+
+		<!-- Top Bar -->
+		<div id="topBar">
+
+			<!-- hide sidebar and connection indicator -->
+			<div class="topBar-left">
+				<button class="topBar-btn" id="toggleSidebarBtn">
+					<i class="fas fa-bars"></i>
+				</button>
+				<div class="status-indicator disconnected" id="statusIndicator">
+					<div class="status-dot"></div>
+					<span>Disconnected</span>
+				</div>
+			</div>
+
+			<!-- Export, health check and restart button -->
+			<div class="topBar-right">
+				<button class="topBar-btn" id="exportBtn">
+					<i class="fas fa-download"></i>
+					Export
+				</button>
+				<button class="topBar-btn" id="healthBtn">
+					<i class="fas fa-heart-pulse"></i>
+					Health Check
+				</button>
+				<button class="topBar-btn danger" id="reinitializeBtn">
+					<i class="fas fa-redo"></i>
+					Restart
+				</button>
+			</div>
+		</div>
+
+		<!-- Chat Display -->
+		<div id="chatDisplay">
+			<div class="messageContainer botMsgContainer">
+				<div class="message botMsg">
+					Hi! I am your chatbot assistance. You can upload documents and ask me about them.
+					<div class="message-time">
+						<i class="fas fa-clock"></i>
+						Now
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Input Container -->
+		<div class="inputContainer">
+			<input type="text" id="textInput" placeholder="Write your questions here..." maxlength="1000">
+			<button id="sendBtn">
+				<i class="fas fa-paper-plane"></i>
+				Send
+			</button>
+		</div>
+	</div>
+
+	<!-- Functionality -->
+	<script type="module" src="js/main.js"></script>
+
+</body>
+</html>

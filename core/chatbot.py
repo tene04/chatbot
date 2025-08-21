@@ -1,18 +1,23 @@
 import os
-import torch
 import ast
-from dotenv import load_dotenv
-from .rag import RAGPipeline
-from .llm import HuggingFaceLLM
 import logging
+
+import torch
+from dotenv import load_dotenv
+
+from .rag import RAGPipeline
+from .llm import LLM
 
 logger = logging.getLogger(__name__)
 
 
 def parse_env_value(value):
-    """
+    '''
     Try to parse an environment variable value into its appropriate type
-    """
+
+    Args:
+        value (str): variable value as a str
+    '''
     if value is None:
         return None
     val = value.strip()
@@ -38,7 +43,7 @@ def parse_env_value(value):
     except (ValueError, SyntaxError):
         pass
 
-    if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+    if (val.startswith(''') and val.endswith(''')) or (val.startswith(''') and val.endswith(''')):
         return val[1:-1]
 
     return val
@@ -67,9 +72,9 @@ class ChatBot:
     llm_stream: bool
 
     def __init__(self):
-        """
+        '''
         Initialize the ChatBot with RAG and LLM components
-        """
+        '''
         config_keys = [
             'DEVICE', 'DOCUMENTS_PATH', 'FAISS_INDEX_PATH', 'TOP_K',
 
@@ -102,7 +107,7 @@ class ChatBot:
             device=self.device 
         )
         
-        self.llm = HuggingFaceLLM(
+        self.llm = LLM(
             model_name=self.llm_model_name,
             device=self.device,
             load_in_4bit=self.llm_load_in_4bit,
@@ -113,21 +118,21 @@ class ChatBot:
 
 
     def initialize(self):
-        """
+        '''
         Initialize both RAG and LLM components
-        """
-        logger.info("Initializing ChatBot...")
+        '''
+        logger.info('Initializing ChatBot...')
         
         if not self.rag.initialize(force_rebuild=self.rag_force_rebuild):
-            logger.error("Failed to initialize RAG pipeline")
+            logger.error('Failed to initialize RAG pipeline')
             return False
             
         if not self.llm.load_model():
-            logger.error("Failed to load LLM model")
+            logger.error('Failed to load LLM model')
             return False
         
         self.is_initialized = True
-        logger.info("ChatBot initialization complete!")
+        logger.info('ChatBot initialization complete!')
 
         rag_status = self.rag.get_status()
         logger.info(rag_status)
@@ -138,17 +143,19 @@ class ChatBot:
 
 
     def ask(self, query):
-        """
+        '''
         Process a query and generate a response using RAG + LLM
         
         Args:
             query (str): User's question
-        """
+        '''
         if not self.is_initialized:
-            raise ValueError("ChatBot not initialized. Call initialize() first.")
+            raise ValueError('ChatBot not initialized. Call initialize() first.')
+        if not query.strip():
+            raise ValueError('I need more information.')
         
         try:
-            context = self.rag.get_context(query, max_tokens=self.rag_max_tokens, top_k=self.top_k, threshold=self.rag_threshold)
+            context = self.rag.get_context(query, max_tokens=self.rag_max_tokens, k=self.top_k, score_threshold=self.rag_threshold)
             response = self.llm.generate_with_context(query, context, 
                                                       max_new_tokens=self.llm_max_new_tokens, 
                                                       temperature=self.llm_temperature, 
@@ -157,21 +164,21 @@ class ChatBot:
                                                       repetition_penalty=self.llm_repetition_penalty, 
                                                       stop_sequences=self.llm_stop_sequences, 
                                                       stream=self.llm_stream)
-            return response
+            return response[response.index('Answer')+7:]
         
         except Exception as e:
-            logger.error(f"Error processing query: {e}")
-            return "I apologize, but I encountered an error processing your question."
+            logger.error(f'Error processing query: {e}')
+            return 'I apologize, but I encountered an error processing your question.'
 
 
     def add_document(self):
-        """
+        '''
         Add a new document to the RAG system
-        """
+        '''
         try:
             self.rag.add_document(file_path=self.documents_path, force_rebuild=self.rag_force_rebuild)
             return True
         except Exception as e:
-            logger.error(f"Error adding document: {e}")
+            logger.error(f'Error adding document: {e}')
             return False
 
